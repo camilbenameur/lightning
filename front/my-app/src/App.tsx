@@ -3,6 +3,7 @@ import './App.css';
 
 function App() {
   const URL = "http://162.19.69.29:8080";
+  const [script, setScript] = useState('print("Hello, world!")');
   const [result, setResult] = useState('');
 
   const fetchData = async () => {
@@ -11,7 +12,7 @@ function App() {
         method: "POST",
         body: JSON.stringify({
           "language": "python",
-          "script": `print('Hello World', 5+5)`,
+          "script": script,
         }),
         headers: {
           "Content-Type": "application/json"
@@ -20,7 +21,7 @@ function App() {
 
       if (res.ok) {
         const data = await res.json();
-        setResult('Request successful: ' + JSON.stringify(data));
+        setResult(JSON.stringify(data));
       } else {
         setResult('Request failed with status: ' + res.status);
       }
@@ -29,10 +30,29 @@ function App() {
     }
   };
 
+  const handleScriptChange = (event) => {
+    setScript(event.target.value);
+  };
+
   return (
-    <div>
-      <button onClick={fetchData}>Make Request</button>
-      <textarea value={result} readOnly rows={4} cols={50} />
+    <div className="container">
+      <div className="textarea-container">
+        <label>
+          Enter Python script:
+          <textarea
+            value={script}
+            onChange={handleScriptChange}
+            className="textarea"
+          />
+        </label>
+        <button type="button" onClick={fetchData}>Run</button>
+      </div>
+      <div className="result-container">
+        <label>Result:</label>
+        <div>
+          <textarea value={result} readOnly className="result-textarea" />
+        </div>
+      </div>
     </div>
   );
 }

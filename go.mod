@@ -4,7 +4,11 @@ go 1.21.1
 
 require github.com/docker/docker v24.0.6+incompatible
 
-require golang.org/x/crypto v0.10.0 // indirect
+require (
+	github.com/gorilla/mux v1.8.1 // indirect
+	github.com/rs/cors v1.10.1 // indirect
+	golang.org/x/crypto v0.10.0 // indirect
+)
 
 require (
 	github.com/Microsoft/go-winio v0.6.1 // indirect

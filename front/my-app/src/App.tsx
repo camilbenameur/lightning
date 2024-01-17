@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
+import Editor, { OnChange } from '@monaco-editor/react';
 import './App.css';
+import Sidebar from './Sidebar';
 
-function App() {
+function App(): JSX.Element {
   const URL = "http://162.19.69.29:8080";
-  const [script, setScript] = useState('print("Hello, world!")');
-  const [result, setResult] = useState('');
+  const [script, setScript] = useState<string>('print("Hello, world!")');
+  const [result, setResult] = useState<string>('');
 
   const fetchData = async () => {
     try {
@@ -21,7 +23,9 @@ function App() {
 
       if (res.ok) {
         const data = await res.json();
-        setResult(JSON.stringify(data));
+        const formattedResult = data.result
+          .replace(/[\u0000-\u001F]+/g, "") // Remove control characters
+        setResult(formattedResult);
       } else {
         setResult('Request failed with status: ' + res.status);
       }
@@ -30,27 +34,25 @@ function App() {
     }
   };
 
-  const handleScriptChange = (event) => {
-    setScript(event.target.value);
+  const handleEditorChange: OnChange = (value, event) => {
+    setScript(value || '');
   };
 
   return (
-    <div className="container">
-      <div className="textarea-container">
-        <label>
-          Enter Python script:
-          <textarea
+    <div className="app">
+      <Sidebar /> 
+      <div className="main-content">
+        <div className="editor-container">
+          <Editor
+            language="python"
+            theme="vs-dark"
             value={script}
-            onChange={handleScriptChange}
-            className="textarea"
+            onChange={handleEditorChange}
           />
-        </label>
-        <button type="button" onClick={fetchData}>Run</button>
-      </div>
-      <div className="result-container">
-        <label>Result:</label>
-        <div>
-          <textarea value={result} readOnly className="result-textarea" />
+          <button className='run-button' onClick={fetchData}>Run</button>
+        </div>
+        <div className="result-container">
+          <pre className="result-textarea">{result}</pre>
         </div>
       </div>
     </div>

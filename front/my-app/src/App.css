@@ -1,48 +1,100 @@
-body {
-  font-family: 'Arial', sans-serif;
+html, body, #root, .app {
+  height: 100%;
+  width: 100%;
   margin: 0;
   padding: 0;
+  overflow: hidden;
+}
+
+.app {
+  display: flex;
+  flex-direction: row;
+  background-color: #1e1e1e;
+  color: #ffffff;
+}
+
+.sidebar {
+  width: 50px;
+  background-color: #333;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 10px 0;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.5);
+}
+
+.sidebar-box {
+  width: 40px;
+  height: 40px;
+  margin-bottom: 10px;
   display: flex;
   justify-content: center;
   align-items: center;
-  height: 100vh;
+  flex-direction: column;
+  background-color: #222;
+  border-radius: 5px;
+  transition: background-color 0.3s;
 }
 
-.container {
+.sidebar-box:hover {
+  background-color: #444;
+}
+
+.sidebar-icon {
+  width: 24px;
+  height: 24px;
+}
+
+.sidebar-label {
+  font-size: 0.7rem;
+  margin-top: 4px;
+}
+
+.main-content {
+  flex-grow: 1;
   display: flex;
-  justify-content: space-around;
-  align-items: flex-start;
+  flex-direction: column;
 }
 
-.textarea-container {
-  width: 45%;
+.editor-container {
+  position: relative;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
+  display: flex;
+  flex-direction: column;
 }
 
-.textarea {
-  width: 100%;
-  height: 200px;
+.run-button {
+  align-self: flex-end; 
+  margin: 10px;
+  padding: 10px 20px;
+  background-color: #007acc;
+  border: none;
+  border-radius: 4px;
+  color: white;
+  cursor: pointer;
+  z-index: 10; 
+}
+
+.run-button:hover {
+  background-color: #005ea6;
 }
 
 .result-container {
-  width: 45%;
+  background-color: #262626; 
+  color: #ccc;
+  border-top: 1px solid #444;
+  padding: 10px;
+  overflow: auto;
 }
 
 .result-textarea {
-  width: 100%;
-  height: 200px;
+  white-space: pre;
+  overflow: auto;
+  height: 200px; 
 }
 
-button {
-  display: block;
-  margin-top: 10px;
-  padding: 8px;
-  background-color: #4CAF50;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #45a049;
+.monaco-editor .editor {
+  height: 100%;
 }

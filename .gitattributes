@@ -1,0 +1,9 @@
+# Normalize line endings: everything is LF in the repo and in checkouts.
+# Shell scripts and Dockerfiles copied into Linux containers break with CRLF.
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.gif binary
+*.ico binary
+*.woff2 binary

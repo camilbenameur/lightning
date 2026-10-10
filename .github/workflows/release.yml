@@ -1,0 +1,134 @@
+name: Release
+
+# Publishes the images to GHCR. Tags: latest (tip of main), sha-<7 chars> (every build),
+# and <major>.<minor>.<patch> + <major>.<minor> for v* git tags. Runtime images share
+# the tags of the app, so LIGHTNING_VERSION pins the whole stack at once.
+# The weekly run rebuilds main on fresh base images to pick up their security fixes.
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+  schedule:
+    - cron: "17 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref_type == 'branch' }}
+
+env:
+  REGISTRY: ghcr.io/${{ github.repository_owner }}
+
+jobs:
+  app:
+    name: ${{ matrix.image }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: lightning-api
+            context: .
+            description: Lightning API, runs untrusted code in locked-down, throw-away Docker containers
+          - image: lightning-web
+            context: web
+            description: Lightning web UI served by Caddy (automatic HTTPS, security headers, /api reverse proxy)
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-qemu-action@v4
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6
+        env:
+          DOCKER_METADATA_ANNOTATIONS_LEVELS: manifest,index
+        with:
+          images: ${{ env.REGISTRY }}/${{ matrix.image }}
+          flavor: latest=false
+          # sha-* outranks latest so that the version baked into the binary is precise.
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}},priority=90
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          labels: |
+            org.opencontainers.image.title=${{ matrix.image }}
+            org.opencontainers.image.description=${{ matrix.description }}
+            org.opencontainers.image.licenses=MIT
+          annotations: |
+            org.opencontainers.image.description=${{ matrix.description }}
+      - uses: docker/build-push-action@v7
+        with:
+          context: ${{ matrix.context }}
+          platforms: linux/amd64,linux/arm64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          annotations: ${{ steps.meta.outputs.annotations }}
+          build-args: |
+            VERSION=${{ steps.meta.outputs.version }}
+            COMMIT=${{ github.sha }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=release-${{ matrix.image }}
+          cache-to: type=gha,mode=max,scope=release-${{ matrix.image }}
+
+  runtimes:
+    name: lightning-runtime-${{ matrix.language }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [python, javascript, typescript, go, rust, c, cpp, java, ruby, php, bash]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/lightning-runtime-${{ matrix.language }}
+          flavor: latest=false
+          tags: |
+            type=raw,value=latest,enable={{is_default_branch}},priority=90
+            type=sha,prefix=sha-
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+          labels: |
+            org.opencontainers.image.title=lightning-runtime-${{ matrix.language }}
+            org.opencontainers.image.description=Lightning sandbox runtime for ${{ matrix.language }}
+            org.opencontainers.image.licenses=MIT
+      - uses: docker/build-push-action@v7
+        with:
+          context: runtimes
+          file: runtimes/${{ matrix.language }}/Dockerfile
+          platforms: linux/amd64
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: mode=max
+          sbom: true
+          cache-from: type=gha,scope=runtime-${{ matrix.language }}
+          cache-to: type=gha,mode=max,scope=runtime-${{ matrix.language }}

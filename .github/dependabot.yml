@@ -1,0 +1,55 @@
+version: 2
+
+updates:
+  - package-ecosystem: gomod
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      go-modules:
+        patterns: ["*"]
+
+  - package-ecosystem: npm
+    directory: /web
+    schedule:
+      interval: weekly
+    groups:
+      web-production:
+        dependency-type: production
+      web-development:
+        dependency-type: development
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns: ["*"]
+
+  # Build and serving images of the API and the web UI.
+  - package-ecosystem: docker
+    directories: ["/", "/web"]
+    schedule:
+      interval: weekly
+    groups:
+      app-images:
+        patterns: ["*"]
+
+  # Sandbox runtimes: patch updates only. A new language version is a deliberate
+  # change (the version shown in the UI comes from the backend language registry).
+  - package-ecosystem: docker
+    directories: ["/runtimes/*"]
+    schedule:
+      interval: weekly
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+    groups:
+      runtime-images:
+        patterns: ["*"]
+
+  - package-ecosystem: docker-compose
+    directory: /
+    schedule:
+      interval: weekly

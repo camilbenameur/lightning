@@ -1,0 +1,8 @@
+# The API image only needs the Go module: allow-list it and keep the build context tiny.
+*
+!go.mod
+!go.sum
+!cmd/
+!internal/
+**/*_test.go
+**/testdata/

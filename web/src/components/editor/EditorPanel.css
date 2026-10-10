@@ -1,0 +1,94 @@
+.editor-panel__file {
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.monaco-host,
+.editor-fallback,
+.editor-skeleton {
+  position: absolute;
+  inset: 0;
+}
+
+.editor-fallback {
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-fallback__notice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 6px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--warning-surface);
+  color: var(--warning);
+}
+
+.editor-fallback__reload {
+  margin-left: auto;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text);
+  font-weight: 500;
+  text-decoration: underline;
+}
+
+.plain-editor {
+  flex: 1;
+  width: 100%;
+  padding: 10px 12px;
+  border: 0;
+  resize: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.55;
+  tab-size: 4;
+}
+
+.editor-skeleton {
+  padding-top: 8px;
+  overflow: hidden;
+}
+
+.editor-skeleton__line {
+  display: flex;
+  align-items: center;
+  height: 20px;
+}
+
+.editor-skeleton__gutter {
+  width: 52px;
+  padding-right: 18px;
+  color: var(--text-subtle);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  text-align: right;
+  opacity: 0.6;
+}
+
+.editor-skeleton__bar {
+  height: 9px;
+  border-radius: 3px;
+  background: var(--surface-active);
+  animation: skeleton 1.4s ease-in-out infinite;
+}
+
+@keyframes skeleton {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+/* Text areas show focus through the panel header indicator (see Panel.css). */
+.monaco-host :focus-visible,
+.plain-editor:focus-visible {
+  outline: none;
+}

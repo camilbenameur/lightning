@@ -1,0 +1,66 @@
+.output {
+  position: absolute;
+  inset: 0;
+  overflow: auto;
+  /* Keeps the panel header and the sticky status bar clear when scrolled into view. */
+  scroll-margin: 40px 0;
+  padding: 10px 12px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.output:focus-visible {
+  outline-offset: -2px;
+}
+
+.output__text {
+  margin: 0;
+  font: inherit;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.output__stderr {
+  color: var(--danger);
+}
+
+.output__placeholder {
+  margin: 0;
+  color: var(--text-subtle);
+  font-family: var(--font-sans);
+}
+
+.output__kbd {
+  margin-left: 4px;
+  border: 1px solid var(--border-strong);
+}
+
+.output__error {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-surface);
+  color: var(--danger);
+  font-family: var(--font-sans);
+}
+
+.output__error:first-child {
+  margin-top: 0;
+}
+
+.output__error svg {
+  flex: none;
+  margin-top: 2px;
+}
+
+/* Phones: also clear the sticky header. */
+@media (max-width: 767px) {
+  .output {
+    scroll-margin-top: 140px;
+  }
+}

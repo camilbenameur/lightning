@@ -2,11 +2,34 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Lightning — run code in the browser</title>
+    <meta
+      name="description"
+      content="Write and run Python, JavaScript, TypeScript, Go, Rust, C, C++, Java, Ruby, PHP and Bash in your browser. Each run executes in a locked-down, throw-away sandbox."
+    />
+    <meta name="theme-color" content="#0b0b0c" />
+    <meta name="color-scheme" content="dark light" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Lightning" />
+    <meta property="og:title" content="Lightning — run code in the browser" />
+    <meta
+      property="og:description"
+      content="An online code runner for 11 languages. Every run happens in an isolated, network-less sandbox."
+    />
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Lightning — run code in the browser" />
+    <meta
+      name="twitter:description"
+      content="An online code runner for 11 languages. Every run happens in an isolated, network-less sandbox."
+    />
+
+    <script src="/theme.js"></script>
   </head>
   <body>
+    <noscript>Lightning needs JavaScript to run code in your browser.</noscript>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

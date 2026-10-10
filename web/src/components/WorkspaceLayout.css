@@ -1,0 +1,54 @@
+.workspace {
+  flex: 1;
+  min-height: 0;
+}
+
+.split-handle {
+  position: relative;
+  flex: none;
+  background: var(--border);
+  transition: background-color 120ms ease;
+}
+
+.split-handle[aria-orientation='vertical'] {
+  width: 1px;
+}
+
+.split-handle[aria-orientation='horizontal'] {
+  height: 1px;
+}
+
+.split-handle:hover,
+.split-handle[data-separator='hover'],
+.split-handle[data-separator='active'] {
+  background: var(--border-strong);
+}
+
+.split-handle:focus-visible {
+  outline: none;
+  background: var(--focus-ring);
+}
+
+.workspace--stacked {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+}
+
+.workspace--stacked > div {
+  position: relative;
+  min-width: 0;
+}
+
+.workspace__editor {
+  height: max(300px, 55svh);
+}
+
+.workspace__stdin {
+  height: 120px;
+}
+
+.workspace__output {
+  height: max(240px, 40svh);
+}

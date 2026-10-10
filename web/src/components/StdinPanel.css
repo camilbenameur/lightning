@@ -1,0 +1,23 @@
+.stdin {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  padding: 10px 12px;
+  border: 0;
+  resize: none;
+  background: transparent;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.stdin::placeholder {
+  color: var(--text-subtle);
+  font-family: var(--font-sans);
+}
+
+/* Focus is shown by the panel header indicator. */
+.stdin:focus-visible {
+  outline: none;
+}

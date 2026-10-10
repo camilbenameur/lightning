@@ -1,0 +1,4 @@
+# Alpine only keeps the latest build of each package in a release branch, so
+# exact apk pins break builds; the base images are pinned to Alpine 3.24 instead.
+ignored:
+  - DL3018

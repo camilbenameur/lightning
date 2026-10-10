@@ -1,0 +1,23 @@
+#!/bin/sh
+# Lightning sandbox entrypoint (the runtime image contract is in runtimes/README.md).
+#
+# Decodes the program and its stdin from the environment, builds the program if
+# the language needs it, then execs it with stdin redirected from the decoded
+# file. It never prints anything of its own, so the output is the program's.
+#
+# /opt/lightning/lang.sh sets SOURCE_FILE and defines run(), which must exec the
+# program. It may also define build(), whose output all goes to stderr.
+set -u
+
+build() { :; }
+# shellcheck source=/dev/null # one per language: runtimes/<id>/lang.sh
+. /opt/lightning/lang.sh
+
+cd /workspace || exit 1
+printf '%s' "${LIGHTNING_SOURCE_B64-}" | base64 -d >"$SOURCE_FILE" || exit 1
+printf '%s' "${LIGHTNING_STDIN_B64-}" | base64 -d >/tmp/.stdin || exit 1
+unset LIGHTNING_SOURCE_B64 LIGHTNING_STDIN_B64
+
+build </dev/null >&2 || exit 1
+exec </tmp/.stdin
+run

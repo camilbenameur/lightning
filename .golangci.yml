@@ -1,0 +1,73 @@
+version: "2"
+
+run:
+  build-tags:
+    - integration
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errname
+    - errorlint
+    - gocritic
+    - gosec
+    - intrange
+    - misspell
+    - nilerr
+    - noctx
+    - nolintlint
+    - perfsprint
+    - revive
+    - unconvert
+    - unparam
+    - usestdlibvars
+  settings:
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    revive:
+      rules:
+        - name: blank-imports
+        - name: context-as-argument
+          arguments:
+            - allow-types-before: "*testing.T"
+        - name: context-keys-type
+        - name: dot-imports
+        - name: error-naming
+        - name: error-return
+        - name: error-strings
+        - name: errorf
+        - name: exported
+        - name: increment-decrement
+        - name: indent-error-flow
+        - name: package-comments
+        - name: range
+        - name: receiver-naming
+        - name: redefines-builtin-id
+        - name: superfluous-else
+        - name: time-naming
+        - name: unexported-return
+        - name: unreachable-code
+        - name: unused-parameter
+        - name: var-declaration
+        - name: var-naming
+  exclusions:
+    presets:
+      - common-false-positives
+      - std-error-handling
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - noctx
+          - bodyclose
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+  settings:
+    goimports:
+      local-prefixes:
+        - github.com/camilbenameur/lightning

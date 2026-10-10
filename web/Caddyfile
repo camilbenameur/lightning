@@ -1,0 +1,93 @@
+# Lightning edge server: serves the single-page app and reverse-proxies /api/* to the Go API.
+#
+# Environment:
+#   DOMAIN      Site address (default "localhost", served over HTTPS with Caddy's local CA).
+#               "lightning.example.com"      -> automatic HTTPS (Let's Encrypt / ZeroSSL).
+#               "http://localhost" or ":80"  -> plain HTTP, e.g. for local runs behind a port mapping
+#                                               (":80" answers any Host header).
+#   ACME_EMAIL  Optional contact address for the ACME account (certificate expiry notices).
+{
+	# Quoted so that an unset ACME_EMAIL yields "no email" instead of a parse error.
+	email "{$ACME_EMAIL}"
+
+	log default {
+		output stderr
+		format json
+	}
+
+	servers {
+		timeouts {
+			read_header 10s
+			read_body 30s
+			idle 2m
+		}
+	}
+}
+
+(security_headers) {
+	header {
+		# Monaco is bundled and self-hosted: its workers load from blob: URLs and it injects inline styles.
+		Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; worker-src 'self' blob:; img-src 'self' data:; font-src 'self' data:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'"
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()"
+		Cross-Origin-Opener-Policy "same-origin"
+		Cross-Origin-Resource-Policy "same-origin"
+		# Do not advertise the server software.
+		-Server
+		-Via
+	}
+}
+
+{$DOMAIN:localhost} {
+	encode zstd gzip
+	import security_headers
+
+	log {
+		output stdout
+		format json
+	}
+
+	# Only the public API reaches the backend: /healthz, /readyz and the
+	# metrics listener are never proxied.
+	handle /api/* {
+		# Defense in depth: the API enforces its own, tighter body limit and
+		# answers with a JSON error; this only cuts off absurdly large uploads.
+		request_body {
+			max_size 512KiB
+		}
+		reverse_proxy api:8080 {
+			# Flush every write so NDJSON run output streams to the browser live.
+			flush_interval -1
+		}
+	}
+
+	root * /srv
+
+	# Content-hashed build output (JS, CSS, Monaco workers, fonts) never changes:
+	# cache it forever. A missing asset is a plain 404, neither cached nor the SPA.
+	@hashed {
+		path /assets/*
+		file
+	}
+	header @hashed Cache-Control "public, max-age=31536000, immutable"
+	handle /assets/* {
+		file_server
+	}
+
+	# Everything else is the SPA: index.html must always be revalidated.
+	handle {
+		header Cache-Control "no-cache"
+		try_files {path} /index.html
+		file_server
+	}
+
+	# Errors raised by Caddy itself (missing asset, oversized body, API down)
+	# keep the security headers and get a short plain-text body.
+	handle_errors {
+		import security_headers
+		respond "{err.status_code} {err.status_text}" {err.status_code}
+	}
+}

@@ -1,0 +1,5 @@
+# The build context is runtimes/; images only need common/ and their own directory.
+/tests
+/*.sh
+/*.md
+/.hadolint.yaml

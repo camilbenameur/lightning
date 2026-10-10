@@ -1,0 +1,160 @@
+# Lightning production stack for a single Docker host.
+#
+#   cp .env.example .env    # set DOMAIN (and optionally ACME_EMAIL, LIGHTNING_VERSION, limits)
+#   docker compose up -d --wait
+#
+# Local run from source instead: see compose.local.yaml (or `make up`).
+# Operator guide: docs/DEPLOYMENT.md. Security model: SECURITY.md.
+
+name: lightning
+
+x-hardening: &hardening
+  restart: unless-stopped
+  read_only: true
+  cap_drop: [ALL]
+  security_opt: [no-new-privileges:true]
+  logging:
+    driver: json-file
+    options:
+      max-size: 10m
+      max-file: "3"
+
+services:
+  # Caddy: TLS termination, static SPA, reverse proxy for /api/* only.
+  web:
+    <<: *hardening
+    image: ghcr.io/camilbenameur/lightning-web:${LIGHTNING_VERSION:-latest}
+    build: ./web
+    depends_on:
+      api:
+        condition: service_healthy
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp" # HTTP/3
+    volumes:
+      - caddy_data:/data # certificates and ACME account: keep across deploys
+      - caddy_config:/config
+    tmpfs:
+      - /tmp
+    networks: [edge, app]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:2019/config/"]
+      interval: 15s
+      timeout: 3s
+      start_period: 10s
+      start_interval: 1s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          pids: 256
+          cpus: "1"
+          memory: 256M
+
+  # Go API. No published ports, no Internet access, no Docker socket: it drives
+  # the host daemon through docker-proxy to start sandbox containers.
+  api:
+    <<: *hardening
+    image: ghcr.io/camilbenameur/lightning-api:${LIGHTNING_VERSION:-latest}
+    build: .
+    depends_on:
+      docker-proxy:
+        condition: service_healthy
+    environment:
+      DOCKER_HOST: tcp://docker-proxy:2375
+      LIGHTNING_TRUST_PROXY: "true"
+      LIGHTNING_PULL_IMAGES: ${LIGHTNING_PULL_IMAGES:-true}
+      LIGHTNING_RUNTIME_IMAGE_PREFIX: ${LIGHTNING_RUNTIME_IMAGE_PREFIX:-ghcr.io/camilbenameur/lightning-runtime-}
+      LIGHTNING_RUNTIME_TAG: ${LIGHTNING_RUNTIME_TAG:-${LIGHTNING_VERSION:-latest}}
+      LIGHTNING_LANGUAGES: ${LIGHTNING_LANGUAGES:-}
+      LIGHTNING_LOG_LEVEL: ${LIGHTNING_LOG_LEVEL:-info}
+      LIGHTNING_LOG_FORMAT: ${LIGHTNING_LOG_FORMAT:-json}
+      LIGHTNING_CORS_ORIGINS: ${LIGHTNING_CORS_ORIGINS:-}
+      LIGHTNING_SANDBOX_RUNTIME: ${LIGHTNING_SANDBOX_RUNTIME:-}
+      LIGHTNING_RUN_TIMEOUT: ${LIGHTNING_RUN_TIMEOUT:-10s}
+      LIGHTNING_MEMORY_MB: ${LIGHTNING_MEMORY_MB:-256}
+      LIGHTNING_CPUS: ${LIGHTNING_CPUS:-1.0}
+      LIGHTNING_PIDS_LIMIT: ${LIGHTNING_PIDS_LIMIT:-128}
+      LIGHTNING_MAX_CODE_BYTES: ${LIGHTNING_MAX_CODE_BYTES:-65536}
+      LIGHTNING_MAX_STDIN_BYTES: ${LIGHTNING_MAX_STDIN_BYTES:-65536}
+      LIGHTNING_MAX_OUTPUT_BYTES: ${LIGHTNING_MAX_OUTPUT_BYTES:-65536}
+      LIGHTNING_MAX_CONCURRENT: ${LIGHTNING_MAX_CONCURRENT:-4}
+      LIGHTNING_QUEUE_TIMEOUT: ${LIGHTNING_QUEUE_TIMEOUT:-20s}
+      LIGHTNING_RATE_LIMIT: ${LIGHTNING_RATE_LIMIT:-30}
+      LIGHTNING_RATE_BURST: ${LIGHTNING_RATE_BURST:-10}
+    tmpfs:
+      - /tmp
+    networks: [app, docker-api]
+    healthcheck:
+      test: ["CMD", "/lightning", "healthcheck"]
+      interval: 15s
+      timeout: 3s
+      start_period: 10s
+      start_interval: 1s
+      retries: 3
+    stop_grace_period: 30s # > LIGHTNING_SHUTDOWN_TIMEOUT (25s): in-flight runs finish or get cleaned up
+    deploy:
+      resources:
+        limits:
+          pids: 256
+          cpus: "1"
+          memory: 256M
+
+  # Filtering proxy in front of the Docker socket. Only the api service may
+  # connect, and only to the exact calls the sandbox executor makes
+  # (internal/sandbox/docker.go); anything else is refused and logged as
+  # "blocked request". Patterns are anchored (^...$).
+  docker-proxy:
+    <<: *hardening
+    image: wollomatic/socket-proxy:1.13.1
+    # uid 0 without capabilities: the host socket is root:docker 0660 (and owned
+    # by the daemon user with rootless Docker, which maps to uid 0 here).
+    user: "0:0"
+    command:
+      - "-listenip=0.0.0.0"
+      - "-allowfrom=api"
+      - '-allowHEAD=(/v1\.[0-9]+)?/_ping'
+      - '-allowGET=(/v1\.[0-9]+)?/(_ping|version|containers/json|containers/[a-zA-Z0-9_.-]+/(json|logs)|images/[a-zA-Z0-9_.:/@-]+/json)'
+      - '-allowPOST=(/v1\.[0-9]+)?/(containers/create|containers/[a-zA-Z0-9_.-]+/(start|wait|kill)|images/create)'
+      - '-allowDELETE=(/v1\.[0-9]+)?/containers/[a-zA-Z0-9_.-]+'
+      # Sandboxes only use tmpfs: refuse bind mounts of any real host directory.
+      - "-allowbindmountfrom=/nonexistent"
+      - "-allowhealthcheck"
+      - "-watchdoginterval=60"
+      - "-stoponwatchdog" # and let the restart policy reconnect to a restarted daemon
+      - "-shutdowngracetime=5"
+      - "-logjson"
+    volumes:
+      - ${DOCKER_SOCKET:-/var/run/docker.sock}:/var/run/docker.sock:ro
+    networks: [docker-api]
+    healthcheck:
+      test: ["CMD", "/healthcheck"]
+      interval: 15s
+      timeout: 3s
+      start_period: 5s
+      start_interval: 1s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          pids: 128
+          cpus: "0.5"
+          memory: 64M
+
+networks:
+  # Published ports and outbound HTTPS for ACME. Only web is attached.
+  edge: {}
+  # web -> api. No Internet access.
+  app:
+    internal: true
+  # api -> docker-proxy. No Internet access.
+  docker-api:
+    internal: true
+
+volumes:
+  caddy_data: {}
+  caddy_config: {}

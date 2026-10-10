@@ -1,0 +1,121 @@
+name: Deploy
+
+# Continuous deployment to the VPS over SSH, after every successful release of main
+# (or on demand, e.g. to roll back). Configure the "production" environment:
+#   secrets: DEPLOY_HOST, DEPLOY_USER, DEPLOY_SSH_KEY, DEPLOY_KNOWN_HOSTS
+#   vars:    DOMAIN (for the smoke test), DEPLOY_PATH (default /opt/lightning), DEPLOY_PORT (default 22)
+# Without the secrets the job succeeds without doing anything. See docs/DEPLOYMENT.md.
+
+on:
+  workflow_run:
+    workflows: [Release]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Image tag to deploy: latest, sha-<7 chars> or a release such as 1.2.0"
+        required: true
+        default: latest
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to production
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ vars.DOMAIN && format('https://{0}', vars.DOMAIN) || '' }}
+    env:
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      DEPLOY_PORT: ${{ vars.DEPLOY_PORT || '22' }}
+      DEPLOY_PATH: ${{ vars.DEPLOY_PATH || '/opt/lightning' }}
+      DOMAIN: ${{ vars.DOMAIN }}
+    steps:
+      - name: Check configuration
+        id: config
+        env:
+          HAS_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY != '' }}
+          HAS_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS != '' }}
+        run: |
+          if [ -z "$DEPLOY_HOST" ] || [ -z "$DEPLOY_USER" ] || [ "$HAS_SSH_KEY" != true ]; then
+            echo "::notice title=Deployment skipped::Set DEPLOY_HOST, DEPLOY_USER and DEPLOY_SSH_KEY on the production environment to enable it (docs/DEPLOYMENT.md)."
+            echo "enabled=false" >>"$GITHUB_OUTPUT"
+            exit 0
+          fi
+          if [ "$HAS_KNOWN_HOSTS" != true ]; then
+            echo "::error title=DEPLOY_KNOWN_HOSTS missing::Add the server host key: ssh-keyscan -p <port> <host> (never trust it blindly)."
+            exit 1
+          fi
+          echo "enabled=true" >>"$GITHUB_OUTPUT"
+
+      - name: Resolve version
+        id: version
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          INPUT_VERSION: ${{ inputs.version }}
+          RELEASED_SHA: ${{ github.event.workflow_run.head_sha }}
+        run: |
+          if [ -n "$RELEASED_SHA" ]; then tag="sha-${RELEASED_SHA::7}"; else tag=$INPUT_VERSION; fi
+          if ! [[ $tag =~ ^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$ ]]; then
+            echo "::error::invalid image tag: $tag"
+            exit 1
+          fi
+          echo "tag=$tag" >>"$GITHUB_OUTPUT"
+          echo "Deploying $tag" >>"$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/checkout@v7
+        if: steps.config.outputs.enabled == 'true'
+        with:
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          persist-credentials: false
+
+      - name: Configure SSH
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" >~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          printf '%s\n' "$KNOWN_HOSTS" >~/.ssh/known_hosts
+          cat >~/.ssh/config <<EOF
+          Host server
+            HostName $DEPLOY_HOST
+            Port $DEPLOY_PORT
+            User $DEPLOY_USER
+            IdentityFile ~/.ssh/deploy_key
+            IdentitiesOnly yes
+            StrictHostKeyChecking yes
+            ServerAliveInterval 15
+          EOF
+
+      - name: Upload compose file and scripts
+        if: steps.config.outputs.enabled == 'true'
+        run: |
+          # shellcheck disable=SC2029 # DEPLOY_PATH is expanded on the runner on purpose
+          ssh server "mkdir -p '$DEPLOY_PATH/scripts'"
+          scp compose.yaml .env.example server:"$DEPLOY_PATH/"
+          scp scripts/deploy.sh scripts/smoke.sh server:"$DEPLOY_PATH/scripts/"
+
+      - name: Deploy
+        if: steps.config.outputs.enabled == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.tag }}
+        run: |
+          # shellcheck disable=SC2029 # arguments are expanded on the runner on purpose
+          ssh server "bash '$DEPLOY_PATH/scripts/deploy.sh' '$VERSION'"
+
+      - name: Smoke test
+        if: steps.config.outputs.enabled == 'true' && env.DOMAIN != ''
+        run: bash scripts/smoke.sh "https://$DOMAIN"

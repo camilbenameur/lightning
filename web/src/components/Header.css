@@ -1,0 +1,204 @@
+.header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: var(--header-height);
+  padding: 0 12px 0 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+
+.brand__logo {
+  color: var(--accent);
+  filter: drop-shadow(0 0 6px rgb(253 224 71 / 0.35));
+}
+
+:root[data-theme='light'] .brand__logo {
+  color: #eab308;
+  filter: none;
+}
+
+.header__toolbar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.header__actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+
+.header__actions .icon-button {
+  width: var(--control-height);
+  height: var(--control-height);
+}
+
+.language-picker {
+  min-width: 150px;
+}
+
+.language-error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--control-height);
+  padding-left: 10px;
+  border: 1px solid var(--danger);
+  border-radius: var(--radius);
+  background: var(--danger-surface);
+  color: var(--danger);
+  white-space: nowrap;
+}
+
+.language-error > span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.language-error svg {
+  flex: none;
+}
+
+.language-error .button {
+  flex: none;
+  height: 26px;
+  margin-left: auto;
+  color: var(--text);
+}
+
+.run-button {
+  min-width: 108px;
+}
+
+.run-button__shortcut {
+  margin-left: 2px;
+}
+
+.button--danger .kbd {
+  color: inherit;
+}
+
+.menu {
+  position: relative;
+}
+
+.menu__list {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 20;
+  min-width: 220px;
+  max-height: min(60vh, 420px);
+  margin: 0;
+  padding: 4px;
+  overflow-y: auto;
+  list-style: none;
+  border-radius: var(--radius);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow);
+}
+
+.menu__item {
+  display: block;
+  width: 100%;
+  padding: 6px 10px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.menu__item:hover,
+.menu__item:focus-visible {
+  background: var(--surface-hover);
+}
+
+.menu__item:focus-visible {
+  outline-offset: -2px;
+}
+
+/* Phones: brand + actions on the first row, the run toolbar on the second.
+   The header sticks to the top so that Run/Stop stay reachable while scrolling. */
+@media (max-width: 767px) {
+  .header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    grid-template-areas:
+      'brand actions'
+      'toolbar toolbar';
+    gap: 8px 12px;
+    height: auto;
+    padding: 8px 12px 10px;
+  }
+
+  .brand {
+    grid-area: brand;
+  }
+
+  .header__actions {
+    grid-area: actions;
+  }
+
+  .header__toolbar {
+    position: relative;
+    flex-wrap: wrap;
+    grid-area: toolbar;
+  }
+
+  /* The examples menu drops down across the whole toolbar. */
+  .menu {
+    position: static;
+  }
+
+  .menu__list {
+    right: 0;
+    min-width: 0;
+  }
+
+  .menu__item {
+    white-space: normal;
+  }
+
+  .language-picker {
+    flex: 1;
+    min-width: 0;
+  }
+
+  /* The error needs more room than the picker: it takes a row of its own. */
+  .language-error {
+    flex: 1 1 100%;
+  }
+
+  .language-error ~ .run-button {
+    margin-left: auto;
+  }
+
+  .run-button {
+    min-width: 0;
+  }
+
+  .run-button__shortcut,
+  .header__label {
+    display: none;
+  }
+}

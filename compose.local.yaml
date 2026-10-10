@@ -1,0 +1,24 @@
+# Local run from source, layered on top of compose.yaml:
+#
+#   make runtimes LANGUAGES="python javascript"    # build the sandbox images you need
+#   make up                                         # or: docker compose -f compose.yaml -f compose.local.yaml up -d --build --wait
+#   open http://localhost:8088
+#
+# Plain HTTP on port 8088 (no TLS, no clash with anything already on 80/443), locally
+# built images, and runtime images from `runtimes/build.sh` instead of GHCR.
+# Requires Docker Compose 2.24.4+ (for !override).
+
+services:
+  web:
+    image: lightning-web:dev
+    environment:
+      DOMAIN: ":80" # plain HTTP for any Host (localhost, 127.0.0.1, a LAN address...)
+    ports: !override
+      - "${LOCAL_HTTP_PORT:-8088}:80"
+
+  api:
+    image: lightning-api:dev
+    environment:
+      LIGHTNING_RUNTIME_IMAGE_PREFIX: lightning-runtime-
+      LIGHTNING_RUNTIME_TAG: latest
+      LIGHTNING_PULL_IMAGES: "false"

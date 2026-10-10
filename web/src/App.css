@@ -1,0 +1,27 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  height: 100dvh;
+}
+
+.app__main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Phones: the page scrolls; the status bar stays in view. */
+@media (max-width: 767px) {
+  .app {
+    height: auto;
+    min-height: 100dvh;
+  }
+
+  .statusbar {
+    position: sticky;
+    bottom: 0;
+    z-index: 10;
+  }
+}

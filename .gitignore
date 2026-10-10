@@ -1,0 +1,25 @@
+# Go build output and test artifacts
+/bin/
+*.test
+*.out
+*.prof
+coverage.*
+
+# Web
+web/node_modules/
+web/dist/
+web/coverage/
+
+# Local configuration (copy .env.example to .env)
+.env
+.env.*
+!.env.example
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+*~
